@@ -34,6 +34,7 @@ let UserSchema = new mongoose.Schema({
   ],
 });
 
+// overwriting built in "toJSON" method to only return values that aren't sensitive
 UserSchema.methods.toJSON = function() {
   let user = this;
   let userObject = user.toObject();
@@ -41,6 +42,7 @@ UserSchema.methods.toJSON = function() {
   return _.pick(userObject, ['_id', 'email']);
 }
 
+// Adds a custom method that generates and returns a token
 UserSchema.methods.generateAuthToken = function() {
   let user = this;
   let access = 'auth';
@@ -52,6 +54,26 @@ UserSchema.methods.generateAuthToken = function() {
     return token;
   })
 };
+
+// statics is similar to a instance method, but it is a method on the model
+UserSchema.statics.findByToken = function(token) {
+  let User = this;
+  let decoded;
+
+  try {
+    decoded = jwt.verify(token, 'abc123');
+  } catch (e) {
+    return Promise.reject();
+  };
+
+  // having a return here means we can chain on a "then"
+  // back in server.js
+  return User.findOne({
+    '_id': decoded._id,
+    'tokens.token': token,
+    'tokens.access': 'auth',
+  })
+}
 
 const User = mongoose.model('User', UserSchema);
 
